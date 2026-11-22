@@ -80,6 +80,7 @@ function initDashboard() {
 
   renderExplorador();
   renderComparativa();
+  renderConclusiones();
 }
 
 function getFiltros() {
@@ -190,9 +191,10 @@ function renderPCA(pts, col) {
   Plotly.react("chart-pca", traces, {
     margin: { t: 10, r: 16, b: 44, l: 48 },
     paper_bgcolor: "transparent",
-    plot_bgcolor: "#ffffff",
-    xaxis: { title: `PC1 (${varExp[0]}% varianza)`, gridcolor: "#f1f5f9", zerolinecolor: "#cbd5e1" },
-    yaxis: { title: `PC2 (${varExp[1]}% varianza)`, gridcolor: "#f1f5f9", zerolinecolor: "#cbd5e1" },
+    plot_bgcolor: "#111827",
+    font: { color: "#e2e8f0" },
+    xaxis: { title: `PC1 (${varExp[0]}% varianza)`, gridcolor: "#1f2937", zerolinecolor: "#334155" },
+    yaxis: { title: `PC2 (${varExp[1]}% varianza)`, gridcolor: "#1f2937", zerolinecolor: "#334155" },
     showlegend: false,
     hovermode: "closest"
   }, { responsive: true, displaylogo: false });
@@ -205,13 +207,14 @@ function renderCiudades(ciudades, keyCiudad) {
     x: sorted.map((c) => c[keyCiudad] || 0),
     type: "bar",
     orientation: "h",
-    marker: { color: "#1d4ed8" },
+    marker: { color: "#3b82f6" },
     hovertemplate: "%{y}: %{x} anomalías<extra></extra>"
   }], {
     margin: { t: 10, r: 20, b: 36, l: 96 },
     paper_bgcolor: "transparent",
-    plot_bgcolor: "#ffffff",
-    xaxis: { title: "Cantidad de anomalías", gridcolor: "#f1f5f9" },
+    plot_bgcolor: "#111827",
+    font: { color: "#e2e8f0" },
+    xaxis: { title: "Cantidad de anomalías", gridcolor: "#1f2937" },
     yaxis: { automargin: true }
   }, { responsive: true, displaylogo: false });
 }
@@ -232,17 +235,18 @@ function renderMensual(algo) {
     y: serie.map((s) => s[key]),
     type: "scatter",
     mode: "lines+markers",
-    line: { color: "#dc2626", width: 2.2 },
-    marker: { size: 5.5, color: "#dc2626" },
+    line: { color: "#f87171", width: 2.2 },
+    marker: { size: 5.5, color: "#f87171" },
     fill: "tozeroy",
-    fillcolor: "rgba(220, 38, 38, 0.08)",
+    fillcolor: "rgba(248, 113, 113, 0.12)",
     hovertemplate: "%{x}: %{y} anomalías<extra></extra>"
   }], {
     margin: { t: 10, r: 16, b: 44, l: 44 },
     paper_bgcolor: "transparent",
-    plot_bgcolor: "#ffffff",
-    xaxis: { title: "Mes", gridcolor: "#f1f5f9" },
-    yaxis: { title: "Eventos anómalos", gridcolor: "#f1f5f9" }
+    plot_bgcolor: "#111827",
+    font: { color: "#e2e8f0" },
+    xaxis: { title: "Mes", gridcolor: "#1f2937" },
+    yaxis: { title: "Eventos anómalos", gridcolor: "#1f2937" }
   }, { responsive: true, displaylogo: false });
 }
 
@@ -293,6 +297,8 @@ function renderComparativa() {
   }], {
     margin: { t: 10, r: 16, b: 70, l: 115 },
     paper_bgcolor: "transparent",
+    plot_bgcolor: "#111827",
+    font: { color: "#e2e8f0" },
     yaxis: { autorange: "reversed" }
   }, { responsive: true, displaylogo: false });
 
@@ -304,35 +310,36 @@ function renderComparativa() {
       y: pisos.map((p) => p.anom_gmm),
       name: "GMM",
       type: "bar",
-      marker: { color: "#1d4ed8" }
+      marker: { color: "#3b82f6" }
     },
     {
       x: pisos.map((p) => p.piso_ecologico),
       y: pisos.map((p) => p.anom_lof),
       name: "LOF",
       type: "bar",
-      marker: { color: "#0284c7" }
+      marker: { color: "#38bdf8" }
     },
     {
       x: pisos.map((p) => p.piso_ecologico),
       y: pisos.map((p) => p.anom_iforest),
       name: "Isolation Forest",
       type: "bar",
-      marker: { color: "#0f766e" }
+      marker: { color: "#14b8a6" }
     },
     {
       x: pisos.map((p) => p.piso_ecologico),
       y: pisos.map((p) => p.anom_consenso),
       name: "Consenso (>=3)",
       type: "bar",
-      marker: { color: "#dc2626" }
+      marker: { color: "#f87171" }
     }
   ], {
     barmode: "group",
     margin: { t: 10, r: 16, b: 40, l: 48 },
     paper_bgcolor: "transparent",
-    plot_bgcolor: "#ffffff",
-    yaxis: { title: "Anomalías detectadas", gridcolor: "#f1f5f9" }
+    plot_bgcolor: "#111827",
+    font: { color: "#e2e8f0" },
+    yaxis: { title: "Anomalías detectadas", gridcolor: "#1f2937" }
   }, { responsive: true, displaylogo: false });
 
   // Tabla modelos
@@ -352,4 +359,51 @@ function renderComparativa() {
       </tr>
     `;
   }).join("");
+}
+
+function renderConclusiones() {
+  const gmm = DATA.modelos.find((m) => m.nombre === "GMM");
+  const altiplano = DATA.resumen_piso.find((p) => p.piso_ecologico === "Altiplano");
+  const llanos = DATA.resumen_piso.find((p) => p.piso_ecologico === "Llanos");
+  const topCiudad = [...DATA.resumen_ciudad].sort((a, b) => b.anom_consenso - a.anom_consenso)[0];
+  const topEvento = DATA.top_anomalias[0];
+  const varAcum = ((DATA.meta.pca_var_exp[0] || 0) + (DATA.meta.pca_var_exp[1] || 0)).toFixed(2);
+
+  const mat = DATA.jaccard.matrix;
+  const lbl = DATA.jaccard.labels;
+  let maxPair = { val: -1, a: "", b: "" };
+  let minPair = { val: 101, a: "", b: "" };
+  for (let i = 0; i < mat.length; i++) {
+    for (let j = i + 1; j < mat.length; j++) {
+      if (mat[i][j] > maxPair.val) maxPair = { val: mat[i][j], a: lbl[i], b: lbl[j] };
+      if (mat[i][j] < minPair.val) minPair = { val: mat[i][j], a: lbl[i], b: lbl[j] };
+    }
+  }
+
+  const items = [
+    {
+      title: "1. Multimodalidad climática capturada por GMM",
+      body: `El modelo <strong>${gmm.modelName}</strong> seleccionó automáticamente <strong>G = ${gmm.G} componentes</strong> (BIC = ${gmm.bic.toLocaleString("es-BO")}), reflejando la estructura heterogénea de Bolivia. Los dos primeros ejes PCA retienen el <strong>${varAcum}%</strong> de la varianza total.`
+    },
+    {
+      title: "2. Sensibilidad local de LOF en el Altiplano",
+      body: `En el <strong>Altiplano</strong> (${altiplano.total.toLocaleString("es-BO")} obs.), <strong>LOF</strong> detectó <strong>${altiplano.anom_lof} anomalías</strong> frente a solo <strong>${altiplano.anom_gmm}</strong> de GMM, demostrando su capacidad para aislar días atípicos dentro de su propio piso ecológico.`
+    },
+    {
+      title: "3. Concentración de extremos en los Llanos",
+      cls: "alert-accent",
+      body: `De las <strong>${DATA.meta.total_anomalias_consenso} anomalías de consenso</strong> (&ge; 3 votos, ${DATA.meta.tasa_consenso_pct}%), los <strong>Llanos</strong> concentran ${llanos.anom_consenso} (${llanos.tasa_consenso_pct}%), liderados por <strong>${topCiudad.ciudad}</strong> (${topCiudad.anom_consenso} eventos). El pico 5/5 ocurrió el ${topEvento.fecha} en ${topEvento.ciudad} (${topEvento.precipitacion_mm} mm de lluvia).`
+    },
+    {
+      title: "4. Divergencia y valor del ensamble (Jaccard)",
+      body: `La mayor concordancia se dio entre <strong>${maxPair.a}</strong> y <strong>${maxPair.b}</strong> (<strong>${maxPair.val}%</strong>), mientras que <strong>${minPair.a}</strong> y <strong>${minPair.b}</strong> apenas coincidieron en <strong>${minPair.val}%</strong>, confirmando que combinar densidad local y global evita sesgos.`
+    }
+  ];
+
+  document.getElementById("conclusiones-grid").innerHTML = items.map((it) => `
+    <article class="conclusion-item ${it.cls || ""}">
+      <h3>${it.title}</h3>
+      <p>${it.body}</p>
+    </article>
+  `).join("");
 }
