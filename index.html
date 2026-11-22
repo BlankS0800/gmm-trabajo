@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detección de Anomalías en Bolivia | GMM, LOF, iForest, OC-SVM &amp; MCD</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-title">Anomalías Bolivia</span>
+        <span class="brand-sub">GMM · LOF · iForest · OC-SVM · MCD</span>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="explorador" role="tab" aria-selected="true">
+          Explorador de Anomalías
+        </button>
+        <button class="tab-btn" data-tab="comparativa" role="tab" aria-selected="false">
+          Comparativa de Algoritmos
+        </button>
+      </nav>
+      <div class="meta-badge" id="meta-periodo">Cargando datos...</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Pestaña 1: Explorador -->
+    <section id="tab-explorador" class="tab-panel active">
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label for="filtro-piso">Piso ecológico</label>
+          <select id="filtro-piso">
+            <option value="Todos">Todos</option>
+            <option value="Altiplano">Altiplano</option>
+            <option value="Valles">Valles</option>
+            <option value="Llanos">Llanos</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="filtro-ciudad">Ciudad / Estación</label>
+          <select id="filtro-ciudad">
+            <option value="Todas">Todas</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="filtro-algoritmo">Algoritmo destacado</label>
+          <select id="filtro-algoritmo">
+            <option value="consenso">Consenso (&ge; 3 votos)</option>
+            <option value="gmm">GMM (Gaussian Mixture)</option>
+            <option value="lof">LOF (Local Outlier Factor)</option>
+            <option value="iforest">Isolation Forest</option>
+            <option value="ocsvm">One-Class SVM</option>
+            <option value="mahal">Mahalanobis Robusta (MCD)</option>
+          </select>
+        </div>
+
+        <div class="filter-group filter-search">
+          <label for="filtro-buscar">Buscar fecha o ciudad</label>
+          <input id="filtro-buscar" type="search" placeholder="Ej. 2024-07, El Alto, Santa Cruz..." />
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <span class="kpi-label">Observaciones reales</span>
+          <strong class="kpi-value" id="kpi-total">—</strong>
+          <span class="kpi-foot" id="kpi-ciudades">10 estaciones en Bolivia</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label" id="kpi-anom-label">Anomalías detectadas</span>
+          <strong class="kpi-value kpi-alert" id="kpi-anomalias">—</strong>
+          <span class="kpi-foot" id="kpi-tasa">—</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Ciudad con mayor incidencia</span>
+          <strong class="kpi-value" id="kpi-top-ciudad">—</strong>
+          <span class="kpi-foot" id="kpi-top-piso">—</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Modelo GMM óptimo (BIC)</span>
+          <strong class="kpi-value" id="kpi-gmm-bic">—</strong>
+          <span class="kpi-foot" id="kpi-gmm-desc">Componentes y covarianza</span>
+        </article>
+      </div>
+
+      <div class="charts-grid">
+        <article class="card card-wide">
+          <div class="card-head">
+            <div>
+              <h2>Proyección PCA 2D: Regímenes Climáticos y Anomalías</h2>
+              <p class="card-desc">Visualización de las 6 variables meteorológicas independientes en los dos primeros componentes principales.</p>
+            </div>
+            <div class="legend-pills">
+              <span class="pill pill-normal">Normal</span>
+              <span class="pill pill-anom">Anomalía seleccionada</span>
+            </div>
+          </div>
+          <div id="chart-pca" class="plot-box"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>Anomalías por Ciudad</h2>
+              <p class="card-desc">Conteo según el algoritmo o consenso elegido.</p>
+            </div>
+          </div>
+          <div id="chart-ciudades" class="plot-box"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>Evolución Mensual de Eventos Anómalos</h2>
+              <p class="card-desc">Frecuencia mensual en el periodo 2024–2025.</p>
+            </div>
+          </div>
+          <div id="chart-mensual" class="plot-box"></div>
+        </article>
+      </div>
+
+      <article class="card table-card">
+        <div class="card-head">
+          <div>
+            <h2>Registro de Eventos Anómalos Multivariados</h2>
+            <p class="card-desc">Eventos con mayor consenso entre GMM, LOF, Isolation Forest, One-Class SVM y Mahalanobis MCD.</p>
+          </div>
+          <span class="table-count" id="table-count">0 registros</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Ciudad</th>
+                <th>Piso</th>
+                <th>T. Máx (°C)</th>
+                <th>T. Mín (°C)</th>
+                <th>Precip. (mm)</th>
+                <th>Viento (km/h)</th>
+                <th>Humedad (%)</th>
+                <th>Cluster GMM</th>
+                <th>Score GMM</th>
+                <th>Score LOF</th>
+                <th>Votos</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-anomalias"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- Pestaña 2: Comparativa de Algoritmos -->
+    <section id="tab-comparativa" class="tab-panel">
+      <div class="charts-grid">
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>Concordancia entre Algoritmos (Índice de Jaccard %)</h2>
+              <p class="card-desc">Porcentaje de solapamiento entre las anomalías detectadas por cada par de métodos.</p>
+            </div>
+          </div>
+          <div id="chart-jaccard" class="plot-box"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <h2>Distribución por Piso Ecológico</h2>
+              <p class="card-desc">Comparación de anomalías GMM vs LOF vs Consenso en Altiplano, Valles y Llanos.</p>
+            </div>
+          </div>
+          <div id="chart-pisos" class="plot-box"></div>
+        </article>
+
+        <article class="card card-wide">
+          <div class="card-head">
+            <div>
+              <h2>Resumen Técnico de los Modelos Ejecutados en R</h2>
+              <p class="card-desc">Parámetros calibrados, umbrales (percentil 95), cantidad de anomalías y tiempo de cómputo.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Algoritmo</th>
+                  <th>Paquete R</th>
+                  <th>Umbral</th>
+                  <th>Anomalías</th>
+                  <th>Tasa (%)</th>
+                  <th>Tiempo (s)</th>
+                  <th>Detalles de configuración</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-modelos"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Univ. Perez Ovando Hernan Yazid — Procesamiento en R 4.6.1</span>
+      <span>Fuente: Open-Meteo ERA5 (Bolivia, 2024–2025)</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
